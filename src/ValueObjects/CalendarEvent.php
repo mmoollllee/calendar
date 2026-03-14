@@ -4,15 +4,17 @@ namespace Guava\Calendar\ValueObjects;
 
 use Carbon\Carbon;
 use Filament\Support\Facades\FilamentTimezone;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
 use function Guava\Calendar\utc_to_user_local_time;
 
 class CalendarEvent
 {
-    protected string|array $title;
+    protected string | Htmlable $title;
 
     protected Carbon $start;
 
@@ -39,6 +41,8 @@ class CalendarEvent
     protected array $styles = [];
 
     protected array $classNames = [];
+
+    protected ?string $timezone = null;
 
     private function __construct(?Model $model = null)
     {
@@ -94,14 +98,14 @@ class CalendarEvent
         return $this->allDay;
     }
 
-    public function title(string|array $title): static
+    public function title(string | Htmlable $title): static
     {
         $this->title = $title;
 
         return $this;
     }
 
-    public function getTitle(): string|array
+    public function getTitle(): string | Htmlable
     {
         return $this->title;
     }
@@ -299,6 +303,13 @@ class CalendarEvent
         return $this;
     }
 
+    public function timezone(string $timezone): static
+    {
+        $this->timezone = $timezone;
+
+        return $this;
+    }
+
     public function getExtendedProps(): array
     {
         return $this->extendedProps;
@@ -312,12 +323,12 @@ class CalendarEvent
     public function toCalendarObject(int $timezoneOffset, bool $useFilamentTimezone): array
     {
         $array = [
-            'title' => $this->getTitle(),
+            'title' => $this->getTitle() instanceof Htmlable ? ['html' => $this->getTitle()->toHtml()] : $this->getTitle(),
             'start' => $useFilamentTimezone
-                ? $this->getStart()->setTimezone(FilamentTimezone::get())->toIso8601String()
+                ? $this->getStart()->setTimezone($this->timezone ?? FilamentTimezone::get())->toIso8601String()
                 : $this->getStart()->utcOffset($timezoneOffset)->toIso8601String(),
             'end' => $useFilamentTimezone
-                ? $this->getEnd()->setTimezone(FilamentTimezone::get())->toIso8601String()
+                ? $this->getEnd()->setTimezone($this->timezone ?? FilamentTimezone::get())->toIso8601String()
                 : $this->getEnd()->utcOffset($timezoneOffset)->toIso8601String(),
             'allDay' => $this->getAllDay(),
             'backgroundColor' => $this->getBackgroundColor(),
@@ -349,8 +360,12 @@ class CalendarEvent
 
     public function fromCalendarObject(array $data, int $timezoneOffset, bool $useFilamentTimezone): static
     {
+        $title = $data['title'];
+        if (is_array($data['title']) && array_key_exists('html', $data['title'])) {
+            $title = new HtmlString($data['title']['html']);
+        }
         $this
-            ->title($data['title'])
+            ->title($title)
             ->start(utc_to_user_local_time($data['start'], $timezoneOffset, $useFilamentTimezone))
             ->end(utc_to_user_local_time($data['end'], $timezoneOffset, $useFilamentTimezone))
             ->allDay($data['allDay'])

@@ -7,13 +7,16 @@
 [![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/guava/calendar/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/GuavaCZ/calendar/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/guava/calendar.svg?style=flat-square)](https://packagist.org/packages/guava/calendar)
 
-> [!NOTE]  
-> You are viewing the documentation for guava/calendar v2, which supports only filament v4.
-> For filament v3, please check guava/calendar v1 here.
-
 This package adds support for [vkurko/calendar](https://github.com/vkurko/calendar) (free, open-source alternative to FullCalendar) to your FilamentPHP panels.
 
 It allows you to create a widget with a calendar with support for **multiple** models and even resources you can group your events into. For example, you could have lessons (events) that are held in different rooms (resources).
+
+## Version compatibility
+| Filament version | Plugin version |
+| ---------------- |:--------------:| 
+| 3.x              | 1.x            |
+| 4.x              | 2.x            |
+| 5.x              | 3.x            |
 
 ## Showcase
 
@@ -248,6 +251,14 @@ Sets the title of the event that is rendered in the calendar.
 ```php
 CalendarEvent::make()->title('My event');
 ```
+
+To output Html in the title pass in a `HtmlString` or other class that implements `Htmlable` :
+
+```php
+CalendarEvent::make()
+->title(new HtmlString('<b>My Event</b>'));
+```
+
 
 #### Customizing the start/end date
 
@@ -1093,10 +1104,19 @@ To handle the callback, override the `onEventDrop` method and implement your own
 use Illuminate\Database\Eloquent\Model;
 use Guava\Calendar\ValueObjects\EventDropInfo;
 
-protected function onEventDrop(EventDropInfo $info, Model $event): void
+protected function onEventDrop(EventDropInfo $info, Model $event): bool
 {
-    // Validate the data and handle the event
-    // Most likely you will want to update the event with the new start /end dates to persist the drag & drop in the database
+     // Access the updated dates using getter methods
+    $newStart = $info->event->getStart();
+    $newEnd = $info->event->getEnd();
+      // Update the event with the new start/end dates to persist the drag & drop
+    $event->update([
+        'start_time' => $newStart,
+        'end_time' => $newEnd,
+    ]);
+     // Return true to accept the drop and keep the event in the new position
+    return true;
+    
 }
 ```
 
